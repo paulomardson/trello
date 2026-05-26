@@ -592,9 +592,21 @@ function buildCard(card, col) {
   const row1 = document.createElement('div');
   row1.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:4px';
 
+  /* ── Row 1: title ──
+     Schedule X  → label = "Schedule X",  subtitle = document title or agency filename
+     Other types → label = docType/title,  subtitle = agency filename if exists
+     Package     → label = "📦 Grant Package"
+  */
+  const isSchedule = !isPackage && card.letter && card.letter >= 'A' && card.letter <= 'Z';
+  const isOther    = !isPackage && !isSchedule;
+
+  const cardLabel = isPackage   ? '📦 Grant Package'
+                  : isSchedule  ? 'Schedule ' + card.letter
+                  : (card.docType && card.docType !== 'Other' ? card.docType : (card.title || 'Document'));
+
   const ttlText = document.createElement('span');
   ttlText.style.cssText = 'font-size:14px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0';
-  ttlText.textContent = isPackage ? '📦 Grant Package' : 'Schedule ' + card.letter;
+  ttlText.textContent = cardLabel;
   row1.appendChild(ttlText);
 
   if (!isPackage && card.version) {
@@ -628,10 +640,10 @@ function buildCard(card, col) {
 
   wrap.appendChild(row1);
 
-  /* ── Row 2: document name / filename ── */
-  const nameStr = isPackage
-    ? (card.packageItems + ' documents compiled')
-    : (card.fileName || card.title || '');
+  /* ── Row 2: subtitle — always the system document name, never the agency filename ── */
+  const nameStr = isPackage  ? (card.packageItems + ' documents compiled')
+                : isOther    ? ''                  /* Other: title already in row1 */
+                :               (card.title || '');  /* Schedule: always system title */
   if (nameStr) {
     const sub = document.createElement('div');
     sub.style.cssText = 'font-size:11px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:10px';
@@ -1207,9 +1219,10 @@ function openBoardComment(cardId, toCol) {
   const card = state.find(c => c.id === cardId);
   if (!card || card.col === toCol) return;
 
-  /* move the card immediately, bumping version if Agency ↔ Internal Review */
+  /* move the card immediately — version only bumps on Agency→Internal Review (agency submission) */
   state = state.map(c => c.id === cardId
-    ? {...c, col: toCol, version: bumpVersion(c, toCol)}
+    ? {...c, col: toCol, version: bumpVersion(c, toCol),
+        agencyUpdated: toCol === 'Internal Review' ? c.agencyUpdated : false}
     : c);
   renderBoard();
 
@@ -1217,7 +1230,7 @@ function openBoardComment(cardId, toCol) {
   _bcCardId = cardId;
   _bcToCol  = toCol;
   document.getElementById('bc-title').textContent =
-    (card.cardType === 'package' ? 'Grant Package' : 'Schedule ' + card.letter) + ' → ' + toCol;
+    (card.cardType === 'package' ? 'Grant Package' : (card.letter && card.letter >= 'A' && card.letter <= 'Z' ? 'Schedule ' + card.letter : card.title || card.docType || 'Document')) + ' → ' + toCol;
   document.getElementById('bc-input').value = '';
   document.getElementById('bc-overlay').style.display = 'flex';
   setTimeout(function(){ document.getElementById('bc-input').focus(); }, 40);
@@ -1245,9 +1258,8 @@ function confirmBoardComment() {
 
 function bumpVersion(card, toCol) {
   if (toCol === 'Draft') return 'V.1';
-  const from = card.col;
-  const bump = (from === 'Agency' && toCol === 'Internal Review') ||
-               (from === 'Internal Review' && toCol === 'Agency');
+  /* only bump when agency submits: Agency → Internal Review */
+  const bump = card.col === 'Agency' && toCol === 'Internal Review';
   if (!bump) return card.version || 'V.1';
   const num = parseInt((card.version || 'V.1').replace(/[^0-9]/g,'')) || 1;
   return 'V.' + (num + 1);
@@ -2114,7 +2126,7 @@ function closeOverlay(id) {
 function openActivityModal(cardId) {
   const card = state.find(c => c.id === cardId);
   if (!card) return;
-  const label = card.cardType === 'package' ? 'Grant Package' : 'Schedule ' + card.letter;
+  const label = card.cardType === 'package' ? 'Grant Package' : (card.letter && card.letter >= 'A' && card.letter <= 'Z' ? 'Schedule ' + card.letter : card.title || card.docType || 'Document');
   document.getElementById('act-title').textContent = label + ' — Activity';
   document.getElementById('act-meta').textContent =
     (card.version || 'V.1') + ' · ' + card.col + (card.docType ? ' · ' + card.docType : '');
@@ -2175,13 +2187,20 @@ if (bc) {
   };
 }
 
-/* wrap moveCard to broadcast */
 const _moveCard = moveCard;
 moveCard = function(id, col) {
-  /* clear agencyUpdated badge when PA acknowledges by moving out of Internal Review */
-  if (col !== 'Internal Review') {
-    state = state.map(c => c.id === id ? {...c, agencyUpdated: false} : c);
-  }
+  state = state.map(function(c) {
+    if (c.id !== id) return c;
+    /* PA sending back to Agency: clear Updated badge, keep version */
+    if (col === 'Agency' && c.agencyUpdated) {
+      return {...c, agencyUpdated: false};
+    }
+    /* Moving away from Internal Review in general: clear badge */
+    if (col !== 'Internal Review') {
+      return {...c, agencyUpdated: false};
+    }
+    return c;
+  });
   _moveCard(id, col);
   broadcastState();
 };
@@ -2213,7 +2232,7 @@ function toggleViewMode() {
 }
 
 function renderAgencyView() {
-  const visible = state.filter(c => c.col === 'Agency' || c.col === 'Ready');
+  const visible = state.filter(c => c.col === 'Agency' || c.col === 'Ready' || c.col === 'Internal Review');
   const tbody = document.getElementById('agency-tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -2224,10 +2243,11 @@ function renderAgencyView() {
   }
 
   visible.forEach(function(card) {
-    const isReady  = card.col === 'Ready';
-    const isAgency = card.col === 'Agency';
+    const isReady    = card.col === 'Ready';
+    const isAgency   = card.col === 'Agency';
+    const isInReview = card.col === 'Internal Review';
     const submitCount = (card.boardComments||[]).filter(c => c.text && c.text.startsWith('[Agency]')).length;
-    const label = card.cardType === 'package' ? 'Grant Package' : ('Schedule ' + card.letter);
+    const label = card.cardType === 'package' ? 'Grant Package' : (card.letter && card.letter >= 'A' && card.letter <= 'Z' ? 'Schedule ' + card.letter : card.title || card.docType || 'Document');
     const tr = document.createElement('tr');
     tr.style.borderBottom = '1px solid #DCDCDC';
 
@@ -2260,6 +2280,10 @@ function renderAgencyView() {
       tdSt.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:bold;color:#92400e;background:#FEF3C7;border:1px solid #FDE68A;padding:3px 10px">' +
         '<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3.5" fill="#92400e"/></svg>' +
         (submitCount > 0 ? 'Resubmission needed' : 'Action required') + '</span>';
+    } else if (isInReview) {
+      tdSt.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#1e40af;background:#DBEAFE;border:1px solid #BFDBFE;padding:3px 10px">' +
+        '<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" stroke="#1e40af" stroke-width="1.2"/><path d="M4 2.2v2.2l1.2.9" stroke="#1e40af" stroke-width="1" stroke-linecap="round"/></svg>' +
+        'Under analysis</span>';
     } else {
       tdSt.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#166534;background:#DCFCE7;border:1px solid #BBF7D0;padding:3px 10px">' +
         '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4.5" fill="#16a34a"/><path d="M2.5 5l2 2 3.5-3.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
