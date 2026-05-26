@@ -12,9 +12,9 @@
 /* ── HGMS visual identity ── */
 *{filter:grayscale(1)!important}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:auto;min-height:100%}
+html,body{height:100%;overflow:hidden}
 :root{--font:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive;--bg:#F1F1F1;--white:#FFFFFF;--border:#DCDCDC;--active:#DCDCDC;--text:#1a1a1a}
-body{font-family:var(--font);font-size:16px;background:var(--bg);color:var(--text)}
+body{font-family:var(--font);font-size:16px;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100%;overflow:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#BDBDBD}
@@ -29,11 +29,11 @@ body{font-family:var(--font);font-size:16px;background:var(--bg);color:var(--tex
 #drag-ghost{position:fixed;pointer-events:none;z-index:8000;background:var(--white);border:1.5px solid var(--text);padding:10px 14px;width:200px;box-shadow:0 4px 12px rgba(0,0,0,.18);font-family:var(--font);font-size:14px;font-weight:bold;color:var(--text);opacity:0;transition:opacity .05s;transform:rotate(2deg)}
 
 /* ── Column ── */
-.col-wrap{background:var(--bg);border:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:8px;animation:colIn .28s ease both}
+.col-wrap{background:var(--bg);border:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:8px;animation:colIn .28s ease both;height:100%;box-sizing:border-box}
 @keyframes colIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .col-header-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--text)}
 .empty-hint{font-size:13px;color:#888;text-align:center;padding:20px 0;font-family:var(--font)}
-.col-body{display:flex;flex-direction:column;gap:6px;min-height:120px;border-radius:0;transition:background .15s;padding:4px;margin:-4px}
+.col-body{flex:1;display:flex;flex-direction:column;gap:6px;min-height:0;border-radius:0;transition:background .15s;padding:4px;margin:-4px}
 .col-body.drag-over{background:rgba(0,0,0,.06);outline:2px dashed var(--text);outline-offset:-2px}
 .drop-indicator{height:2px;background:var(--text);opacity:0;margin:0 2px;transition:opacity .1s;flex-shrink:0}
 .drop-indicator.visible{opacity:1}
@@ -179,12 +179,16 @@ async function gateSubmit() {
   </div>
   <div style="display:flex;align-items:center;gap:16px">
     <span id="hdr-stats" style="font-size:13px;color:#555;font-family:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive"></span>
+    <button id="view-mode-btn" onclick="toggleViewMode()"
+      style="font-family:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive;font-size:12px;background:#fff;color:#1a1a1a;border:1px solid #DCDCDC;padding:5px 12px;cursor:pointer;transition:all .15s">
+      Agency View →
+    </button>
     <span style="font-size:13px;font-family:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive;cursor:pointer">Ross George &#9660;</span>
   </div>
 </header>
 
 <!-- ── Board view ── -->
-<main id="view-board" class="hidden" style="display:flex;flex-direction:column">
+<main id="view-board" class="hidden" style="display:flex;flex-direction:column;flex:1;min-height:0">
 
   <!-- toolbar bar -->
   <div style="padding:12px 24px;border-bottom:1px solid #DCDCDC;background:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -213,9 +217,9 @@ async function gateSubmit() {
     </div>
   </div>
 
-  <!-- board grid -->
-  <div style="padding:24px">
-    <div id="board" class="grid gap-4 min-w-[860px]" style="grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch"></div>
+  <!-- board grid — this is the ONLY scrollable area -->
+  <div style="flex:1;overflow:auto;padding:24px">
+    <div id="board" style="display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:16px;align-items:stretch;min-height:calc(100% - 1px)"></div>
   </div>
 
   <!-- package footer -->
@@ -239,7 +243,7 @@ async function gateSubmit() {
           <th>Version</th>
           <th class="center">Draft</th>
           <th class="center">Agency</th>
-          <th class="center">PA Review</th>
+          <th class="center">Internal Review</th>
           <th class="center">Ready</th>
           <th>Action</th>
         </tr>
@@ -326,7 +330,7 @@ async function gateSubmit() {
     <div class="m-topbar">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="0" stroke="#1a1a1a" stroke-width="1.2"/><path d="M1 5h12" stroke="#1a1a1a" stroke-width="1.2"/><path d="M4 8.5h6M4 10.5h4" stroke="#1a1a1a" stroke-width="1" stroke-linecap="round"/></svg>
       <span id="m-label" style="font-size:13px;color:#555;font-family:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive"></span>
-      <span class="badge badge-review ml-1" id="m-status-badge">PA Review</span>
+      <span class="badge badge-review ml-1" id="m-status-badge">Internal Review</span>
       <span class="ml-auto" style="font-size:11px;color:#888;border:1px solid #DCDCDC;padding:1px 8px;font-family:'Chalkboard SE','Chalkboard','Comic Sans MS',cursive;letter-spacing:.1em">PDF</span>
       <button class="m-close ml-2" id="btn-close-modal">&#x2715;</button>
     </div>
@@ -409,11 +413,11 @@ async function gateSubmit() {
 /* ══════════════════════════════════════════════
    DATA
 ══════════════════════════════════════════════ */
-const COLS = ['Draft','Agency','PA Review','Ready'];
+const COLS = ['Draft','Agency','Internal Review','Ready'];
 const COL_META = {
   'Draft':     {dot:'#AAAAAA', desc:'Awaiting assignment'},
-  'Agency':    {dot:'#666666', desc:'In Progress'},
-  'PA Review': {dot:'#333333', desc:'Pending approval'},
+  'Agency':    {dot:'#666666', desc:'Awaiting completion'},
+  'Internal Review': {dot:'#333333', desc:'In review'},
   'Ready':     {dot:'#1a1a1a', desc:'Approved & locked'},
 };
 
@@ -459,11 +463,11 @@ let openMenu  = null;
 let currentView = 'board';
 
 /* ── Workflow columns ── */
-const WF_COLS = ['Draft', '(with) SP', 'PA Review', 'Approved'];
+const WF_COLS = ['Draft', '(with) SP', 'Internal Review', 'Approved'];
 const WF_META = {
   'Draft':       {dot:'#AAAAAA', desc:'Generated from template — PA or SP action needed'},
   '(with) SP':   {dot:'#555555', desc:'Sent to Service Provider for completion'},
-  'PA Review':   {dot:'#333333', desc:'Submitted by SP — PA review required'},
+  'Internal Review':   {dot:'#333333', desc:'Submitted by SP — PA review required'},
   'Approved':    {dot:'#1a1a1a', desc:'Complete — no further edits needed'},
 };
 
@@ -477,9 +481,9 @@ let _noteToCol  = null;
 function setView(v) {
   currentView = v;
   const boardEl = document.getElementById('view-board');
-  boardEl.style.display = 'flex';
-  document.getElementById('btn-board').classList.add('active');
-  renderBoard();
+  boardEl.style.display = v === 'board' ? 'flex' : 'none';
+  document.getElementById('btn-board') && document.getElementById('btn-board').classList.toggle('active', v === 'board');
+  if (v === 'board') renderBoard();
 }
 
 /* ══════════════════════════════════════════════
@@ -493,6 +497,7 @@ function renderBoard() {
   state = state.map(c => c.col === 'Draft' ? {...c, version: 'V.1'} : c);
   const board = document.getElementById('board');
   board.innerHTML = '';
+  board.style.minHeight = '100%';
   COLS.forEach(function(col, ci) {
     const meta = COL_META[col];
     const colCards = state.filter(c => c.col === col);
@@ -597,6 +602,14 @@ function buildCard(card, col) {
     ver.style.cssText = 'font-size:10px;border:1px solid #DCDCDC;padding:1px 6px;color:#888;background:#F8F8F8;flex-shrink:0;white-space:nowrap';
     ver.textContent = card.version;
     row1.appendChild(ver);
+  }
+
+  /* agency updated badge */
+  if (card.agencyUpdated) {
+    const upd = document.createElement('span');
+    upd.style.cssText = 'font-size:10px;background:#DCDCDC;border:1px solid #888;padding:1px 7px;color:#1a1a1a;font-weight:bold;flex-shrink:0;white-space:nowrap';
+    upd.textContent = 'Updated';
+    row1.appendChild(upd);
   }
 
   if (actCount > 0) {
@@ -901,7 +914,7 @@ function renderAction() {
     const sb = document.createElement('span');
     sb.className = 'badge ' + (
       card.col === 'Agency'    ? 'badge-progress' :
-      card.col === 'PA Review' ? 'badge-review'   :
+      card.col === 'Internal Review' ? 'badge-review'   :
       card.col === 'Ready'     ? 'badge-complete'  : '');
     sb.textContent = card.col;
     tdSt.appendChild(sb);
@@ -917,7 +930,7 @@ function renderAction() {
   updateStats();
 }
 
-/* ── Action popover (Replace document | Draft | Agency | PA Review | Ready | — | Delete) ── */
+/* ── Action popover (Replace document | Draft | Agency | Internal Review | Ready | — | Delete) ── */
 function buildActionPopover(card) {
   const wrap = document.createElement('div');
   wrap.className = 'dd-wrap';
@@ -996,7 +1009,7 @@ function openModal(id) {
   document.getElementById('m-label').textContent = 'Schedule ' + card.letter;
 
   /* show/hide footer buttons based on column */
-  const inReview = card.col === 'PA Review';
+  const inReview = card.col === 'Internal Review';
   document.getElementById('btn-return-agency').style.display = inReview ? '' : 'none';
   document.getElementById('btn-approve-ready').style.display = inReview ? '' : 'none';
   const footerLabel = document.querySelector('.m-footer span');
@@ -1194,7 +1207,7 @@ function openBoardComment(cardId, toCol) {
   const card = state.find(c => c.id === cardId);
   if (!card || card.col === toCol) return;
 
-  /* move the card immediately, bumping version if Agency ↔ PA Review */
+  /* move the card immediately, bumping version if Agency ↔ Internal Review */
   state = state.map(c => c.id === cardId
     ? {...c, col: toCol, version: bumpVersion(c, toCol)}
     : c);
@@ -1233,8 +1246,8 @@ function confirmBoardComment() {
 function bumpVersion(card, toCol) {
   if (toCol === 'Draft') return 'V.1';
   const from = card.col;
-  const bump = (from === 'Agency' && toCol === 'PA Review') ||
-               (from === 'PA Review' && toCol === 'Agency');
+  const bump = (from === 'Agency' && toCol === 'Internal Review') ||
+               (from === 'Internal Review' && toCol === 'Agency');
   if (!bump) return card.version || 'V.1';
   const num = parseInt((card.version || 'V.1').replace(/[^0-9]/g,'')) || 1;
   return 'V.' + (num + 1);
@@ -1402,6 +1415,23 @@ function renderWorkflow() {
       '<div style="width:8px;height:8px;border-radius:50%;background:'+meta.dot+';flex-shrink:0"></div>'+
       '<span style="font-size:14px;font-weight:bold;color:#1a1a1a">'+col+'</span>'+
       '<span style="margin-left:auto;font-size:12px;color:#888;border:1px solid #DCDCDC;background:#fff;padding:1px 8px">'+colCards.length+'</span>';
+
+    /* Ready column: select all toggle */
+    if (col === 'Ready' && colCards.length > 0) {
+      const allSelected = colCards.every(c => c.inPackage);
+      const selBtn = document.createElement('button');
+      selBtn.style.cssText = 'font-family:var(--font);font-size:11px;background:transparent;border:none;cursor:pointer;color:#555;text-decoration:underline;padding:0;white-space:nowrap';
+      selBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
+      selBtn.addEventListener('click', function() {
+        const newVal = !allSelected;
+        state = state.map(c => c.col === 'Ready'
+          ? {...c, inPackage: newVal, pkgOrder: newVal ? Date.now() : null}
+          : c);
+        updatePkgFooter();
+        renderBoard();
+      });
+      hdr.appendChild(selBtn);
+    }
     colEl.appendChild(hdr);
 
     const desc = document.createElement('div');
@@ -1567,7 +1597,7 @@ function openNotePrompt(cardId, toCol) {
   /* transitions that don't need a note — go straight through */
   const skipNote =
     (card.wfCol === 'Draft' && toCol === '(with) SP') ||
-    toCol === 'PA Review';
+    toCol === 'Internal Review';
 
   if (skipNote) {
     const activity = {
@@ -2126,9 +2156,205 @@ document.getElementById('modal-overlay').addEventListener('click', function(e){ 
 document.getElementById('btn-return-agency').addEventListener('click', function(){ if(activeCardId!==null) moveCard(activeCardId,'Agency'); closeModal(); });
 document.getElementById('btn-approve-ready').addEventListener('click', function(){ if(activeCardId!==null) moveCard(activeCardId,'Ready'); closeModal(); });
 
+/* ══════════════════════════════════════════════
+   BROADCAST CHANNEL — real-time tab sync
+══════════════════════════════════════════════ */
+const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('hgms_board') : null;
+
+function broadcastState() {
+  if (bc) bc.postMessage({type:'STATE', state: JSON.stringify(state)});
+}
+
+if (bc) {
+  bc.onmessage = function(ev) {
+    if (ev.data.type === 'STATE') {
+      state = JSON.parse(ev.data.state);
+      if (currentViewMode === 'agency') renderAgencyView();
+      else renderBoard();
+    }
+  };
+}
+
+/* wrap moveCard to broadcast */
+const _moveCard = moveCard;
+moveCard = function(id, col) {
+  /* clear agencyUpdated badge when PA acknowledges by moving out of Internal Review */
+  if (col !== 'Internal Review') {
+    state = state.map(c => c.id === id ? {...c, agencyUpdated: false} : c);
+  }
+  _moveCard(id, col);
+  broadcastState();
+};
+
+/* ══════════════════════════════════════════════
+   VIEW MODE TOGGLE  (PA ↔ Agency)
+══════════════════════════════════════════════ */
+let currentViewMode = 'pa';
+
+function toggleViewMode() {
+  currentViewMode = currentViewMode === 'pa' ? 'agency' : 'pa';
+  const btn = document.getElementById('view-mode-btn');
+  if (currentViewMode === 'agency') {
+    btn.textContent = '← PA View';
+    btn.style.background = '#1a1a1a';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1a1a1a';
+    document.getElementById('view-board').style.display = 'none';
+    document.getElementById('view-agency').style.display = 'flex';
+    renderAgencyView();
+  } else {
+    btn.textContent = 'Agency View →';
+    btn.style.background = '#fff';
+    btn.style.color = '#1a1a1a';
+    btn.style.borderColor = '#DCDCDC';
+    document.getElementById('view-agency').style.display = 'none';
+    setView('board');
+  }
+}
+
+function renderAgencyView() {
+  const visible = state.filter(c => c.col === 'Agency' || c.col === 'Ready');
+  const tbody = document.getElementById('agency-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!visible.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:#888;font-style:italic">No documents assigned to your organisation yet.</td></tr>';
+    return;
+  }
+
+  visible.forEach(function(card) {
+    const isReady  = card.col === 'Ready';
+    const isAgency = card.col === 'Agency';
+    const submitCount = (card.boardComments||[]).filter(c => c.text && c.text.startsWith('[Agency]')).length;
+    const label = card.cardType === 'package' ? 'Grant Package' : ('Schedule ' + card.letter);
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid #DCDCDC';
+
+    /* Name */
+    const tdName = document.createElement('td');
+    tdName.style.cssText = 'padding:13px 16px;font-size:13px;font-weight:bold';
+    tdName.textContent = label;
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:#888;font-weight:normal;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px';
+    sub.textContent = card.fileName || card.title || '';
+    tdName.appendChild(sub);
+    tr.appendChild(tdName);
+
+    /* Version */
+    const tdVer = document.createElement('td');
+    tdVer.style.cssText = 'padding:13px 16px;font-size:12px;color:#888;white-space:nowrap';
+    tdVer.textContent = card.version || 'V.1';
+    if (card.agencyUpdated) {
+      const badge = document.createElement('span');
+      badge.style.cssText = 'margin-left:6px;font-size:10px;background:#DCDCDC;border:1px solid #888;padding:1px 6px;color:#333;font-weight:bold;vertical-align:middle';
+      badge.textContent = 'Updated';
+      tdVer.appendChild(badge);
+    }
+    tr.appendChild(tdVer);
+
+    /* Status */
+    const tdSt = document.createElement('td');
+    tdSt.style.cssText = 'padding:13px 16px';
+    if (isAgency) {
+      tdSt.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:bold;color:#92400e;background:#FEF3C7;border:1px solid #FDE68A;padding:3px 10px">' +
+        '<svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3.5" fill="#92400e"/></svg>' +
+        (submitCount > 0 ? 'Resubmission needed' : 'Action required') + '</span>';
+    } else {
+      tdSt.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#166534;background:#DCFCE7;border:1px solid #BBF7D0;padding:3px 10px">' +
+        '<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4.5" fill="#16a34a"/><path d="M2.5 5l2 2 3.5-3.5" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        'Approved — final version</span>';
+    }
+    tr.appendChild(tdSt);
+
+    /* Actions */
+    const tdAct = document.createElement('td');
+    tdAct.style.cssText = 'padding:13px 16px;white-space:nowrap';
+
+    const dlBtn = document.createElement('button');
+    dlBtn.style.cssText = 'font-family:var(--font);font-size:12px;background:#fff;border:1px solid #DCDCDC;padding:5px 12px;cursor:pointer;margin-right:8px';
+    dlBtn.textContent = '↓ Download';
+    dlBtn.addEventListener('click', function() { toast('Downloading ' + label + '…'); });
+    tdAct.appendChild(dlBtn);
+
+    if (isAgency) {
+      const subBtn = document.createElement('button');
+      subBtn.style.cssText = 'font-family:var(--font);font-size:12px;background:#1a1a1a;color:#fff;border:1px solid #1a1a1a;padding:5px 14px;cursor:pointer;font-weight:bold';
+      subBtn.textContent = submitCount > 0 ? 'Resubmit' : 'Submit';
+      subBtn.addEventListener('click', function() { openAgencySubmitModal(card.id); });
+      tdAct.appendChild(subBtn);
+    }
+
+    tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  });
+}
+
+/* ── Agency submit modal ── */
+let _agencySubmitCardId = null;
+let _agencyFile = null;
+
+function openAgencySubmitModal(cardId) {
+  _agencySubmitCardId = cardId;
+  _agencyFile = null;
+  const card = state.find(c => c.id === cardId);
+  const label = card ? ('Schedule ' + card.letter) : 'Document';
+  const submitCount = card ? (card.boardComments||[]).filter(c => c.text && c.text.startsWith('[Agency]')).length : 0;
+  document.getElementById('asm-title').textContent = submitCount > 0 ? 'Resubmit: ' + label : 'Submit: ' + label;
+  document.getElementById('asm-file-name').textContent = 'No file chosen';
+  document.getElementById('asm-file-err').style.display = 'none';
+  openOverlay('asm-overlay');
+}
+
+function asmChooseFile() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.pdf,.doc,.docx';
+  inp.onchange = function() {
+    if (!inp.files || !inp.files[0]) return;
+    _agencyFile = inp.files[0];
+    document.getElementById('asm-file-name').textContent = inp.files[0].name;
+  };
+  inp.click();
+}
+
+function asmConfirm() {
+  if (!_agencyFile) {
+    document.getElementById('asm-file-err').style.display = 'block';
+    return;
+  }
+  const card = state.find(c => c.id === _agencySubmitCardId);
+  if (!card) return;
+
+  const newVer = (function() {
+    const num = parseInt((card.version || 'V.1').replace(/[^0-9]/g,'')) || 1;
+    return 'V.' + (num + 1);
+  })();
+
+  const comment = {
+    text: '[Agency] Submitted: ' + _agencyFile.name,
+    by: 'Agency',
+    at: new Date().toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})
+  };
+
+  state = state.map(c => c.id === _agencySubmitCardId
+    ? {...c,
+        col: 'Internal Review',
+        version: newVer,
+        agencyUpdated: true,
+        modifiedAt: new Date(),
+        boardComments: [...(c.boardComments||[]), comment],
+        fileName: _agencyFile.name}
+    : c);
+
+  closeOverlay('asm-overlay');
+  broadcastState();
+  if (currentViewMode === 'agency') renderAgencyView();
+  else renderBoard();
+  toast('Submitted successfully — sent to Internal Review');
+}
+
 /* ── init ── */
-document.getElementById('view-board').style.display = 'flex';
-renderBoard();
+setView('board');
 </script>
 <!-- ══ ADD FROM COMPUTER ══ -->
 <div id="apc-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeOverlay('apc-overlay')">
@@ -2405,5 +2631,61 @@ renderBoard();
   </div>
 </div>
 
+<!-- ══ AGENCY VIEW ══ -->
+<main id="view-agency" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div style="padding:14px 24px;border-bottom:1px solid #DCDCDC;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:15px;font-weight:bold;font-family:var(--font)">HGMS In From The Cold Grant 2026/27</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;font-family:var(--font)">Agency Portal — document submission</div>
+    </div>
+    <span style="font-size:11px;color:#888;border:1px solid #DCDCDC;padding:3px 10px;font-family:var(--font);background:#F8F8F8">Agency View</span>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:24px">
+    <div style="font-size:13px;color:#555;margin-bottom:16px;font-family:var(--font)">
+      Documents below require your attention. Download each file, complete it, and submit the filled version back.
+    </div>
+    <div style="background:#fff;border:1px solid #DCDCDC;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--font)">
+        <thead style="background:#F1F1F1">
+          <tr>
+            <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:bold;border-bottom:1px solid #DCDCDC;text-transform:uppercase;letter-spacing:.06em">Document</th>
+            <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:bold;border-bottom:1px solid #DCDCDC;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">Version</th>
+            <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:bold;border-bottom:1px solid #DCDCDC;text-transform:uppercase;letter-spacing:.06em">Status</th>
+            <th style="padding:11px 16px;text-align:left;font-size:11px;font-weight:bold;border-bottom:1px solid #DCDCDC;text-transform:uppercase;letter-spacing:.06em">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="agency-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- ══ AGENCY SUBMIT MODAL ══ -->
+<div id="asm-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)closeOverlay('asm-overlay')">
+  <div style="background:#fff;border:1px solid #1a1a1a;width:min(420px,100%);font-family:var(--font)">
+    <div style="background:#F1F1F1;border-bottom:1px solid #DCDCDC;padding:13px 18px;display:flex;justify-content:space-between;align-items:center">
+      <span id="asm-title" style="font-size:14px;font-weight:bold"></span>
+      <button onclick="closeOverlay('asm-overlay')" style="background:none;border:none;font-size:17px;cursor:pointer;color:#666">&#x2715;</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:12px;color:#555;padding:10px 12px;background:#F8F8F8;border:1px solid #DCDCDC;border-left:3px solid #1a1a1a">
+        Upload the completed document. This will send it to the Program Administrator for review and increment the version number.
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:6px">Completed file <span style="color:#c00">*</span></label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button onclick="asmChooseFile()" style="font-family:var(--font);font-size:13px;background:#fff;border:1px solid #DCDCDC;padding:7px 14px;cursor:pointer">Choose file</button>
+          <span id="asm-file-name" style="font-size:12px;color:#888">No file chosen</span>
+        </div>
+        <span id="asm-file-err" style="display:none;font-size:11px;color:#c00;margin-top:4px">Please choose a file to submit.</span>
+      </div>
+    </div>
+    <div style="padding:13px 18px;border-top:1px solid #DCDCDC;display:flex;justify-content:flex-end;gap:10px">
+      <button onclick="closeOverlay('asm-overlay')" style="font-family:var(--font);font-size:13px;background:#fff;border:1px solid #DCDCDC;padding:7px 14px;cursor:pointer">Cancel</button>
+      <button onclick="asmConfirm()" style="font-family:var(--font);font-size:13px;background:#1a1a1a;color:#fff;border:1px solid #1a1a1a;padding:7px 18px;cursor:pointer;font-weight:bold">Submit →</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
