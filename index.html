@@ -2292,6 +2292,7 @@
                 inPackage: false,
                 pkgOrder: null,
                 boardComments: [],
+                versions: [],
                 addedAt: new Date(),
                 modifiedAt: new Date(),
             }));
@@ -2336,6 +2337,8 @@
                 currentView = v;
                 const boardEl = document.getElementById("view-board");
                 boardEl.style.display = v === "board" ? "flex" : "none";
+                const detailEl = document.getElementById("view-detail");
+                if (detailEl) detailEl.style.display = v === "detail" ? "flex" : "none";
                 document.getElementById("btn-board") &&
                     document
                         .getElementById("btn-board")
@@ -3023,6 +3026,157 @@
                 return wrap;
             }
             function openModal(id) {
+                openDetailPage(id);
+            }
+
+            /* ── Detail page ── */
+            let _detailCardId = null;
+            let _detailPrevMode = 'pa';
+
+            function openDetailPage(id) {
+                _detailCardId = id;
+                _detailPrevMode = currentViewMode;
+                activeCardId = id;
+                /* viewing detail in PA view clears the agency-updated badge */
+                if (currentViewMode !== 'agency') {
+                    state = state.map(c => c.id === id ? {...c, agencyUpdated: false} : c);
+                }
+                if (currentViewMode === 'agency') {
+                    document.getElementById('view-agency').style.display = 'none';
+                }
+                setView('detail');
+                _renderDetailPage();
+            }
+
+            function closeDetailPage() {
+                if (_detailPrevMode === 'agency') {
+                    setView('board');
+                    document.getElementById('view-board').style.display = 'none';
+                    document.getElementById('view-agency').style.display = 'flex';
+                    renderAgencyView();
+                } else {
+                    setView('board');
+                }
+            }
+
+            function _renderDetailPage() {
+                const card = state.find(c => c.id === _detailCardId);
+                if (!card) return;
+                const label = card.cardType === 'package' ? 'Grant Package' : (card.docType || ('Schedule ' + card.letter));
+                const fileName = card.fileName || label.replace(/ /g,'_') + '.pdf';
+                const ext = fileName.split('.').pop().toUpperCase();
+                document.getElementById('dp-file-icon').innerHTML = getFormatIconSVG(ext);
+                document.getElementById('dp-file-name').textContent = fileName;
+                const dt = new Date(card.addedAt || card.modifiedAt);
+                document.getElementById('dp-file-meta').textContent = 'Uploaded on ' + dt.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+                document.getElementById('dp-name').value = card.title || label;
+                document.getElementById('dp-added-by').value = card.addedBy || 'Rod Walsh';
+                document.getElementById('dp-column').value = card.col || 'Draft';
+                const typeSelect = document.getElementById('dp-type');
+                typeSelect.innerHTML = '';
+                ['Schedule A','Appendix 1 to Schedule A','Schedule B D','Schedule C','Schedule E',
+                 'Schedule F – Appendix 1','Schedule F – Appendix 2','Schedule F – Appendix 3',
+                 'Schedule G','Schedule I','Grant Package','Fully Executed Agreement','Template','Other'
+                ].forEach(function(t) {
+                    const o = document.createElement('option');
+                    o.value = t; o.textContent = t;
+                    if (t === (card.docType||'')) o.selected = true;
+                    typeSelect.appendChild(o);
+                });
+                _renderDetailVersions(card);
+            }
+
+            function _renderDetailVersions(card) {
+                const tbody = document.getElementById('dp-versions-body');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                const history = card.versions || [];
+                const all = [...history, {
+                    ver: card.version || 'V.1',
+                    by: card.addedBy || 'Rod Walsh',
+                    at: card.addedAt || card.modifiedAt,
+                    current: true
+                }].reverse();
+                all.forEach(function(v) {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #DCDCDC';
+                    const tdVer = document.createElement('td');
+                    tdVer.style.cssText = 'padding:11px 14px;white-space:nowrap';
+                    tdVer.innerHTML = '<span style="font-size:11px;font-weight:bold;background:#DCDCDC;padding:2px 7px;margin-right:6px">'+(v.ver||'V.1')+'</span>'+(v.current?'<span style="font-size:10px;border:1px solid #aaa;padding:1px 5px;color:#555">Current</span>':'');
+                    tr.appendChild(tdVer);
+                    const tdBy = document.createElement('td');
+                    tdBy.style.cssText = 'padding:11px 14px';
+                    const d = new Date(v.at);
+                    tdBy.innerHTML = '<div style="font-size:13px;font-weight:bold">'+(v.by||'—')+'</div><div style="font-size:11px;color:#888;margin-top:2px">'+d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})+'</div>';
+                    tr.appendChild(tdBy);
+                    const tdAct = document.createElement('td');
+                    tdAct.style.cssText = 'padding:11px 14px';
+                    const dl = document.createElement('button');
+                    dl.style.cssText = 'font-family:var(--font);font-size:12px;background:#fff;border:1px solid #DCDCDC;padding:4px 10px;cursor:pointer';
+                    dl.textContent = '↓ Download';
+                    dl.addEventListener('click', function(){ toast('Downloading '+v.ver+'…'); });
+                    tdAct.appendChild(dl);
+                    tr.appendChild(tdAct);
+                    tbody.appendChild(tr);
+                });
+            }
+
+            function dpReplaceFile() {
+                const inp = document.createElement('input');
+                inp.type = 'file';
+                inp.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
+                inp.onchange = function() {
+                    if (!inp.files||!inp.files[0]) return;
+                    const file = inp.files[0];
+                    const card = state.find(c => c.id === _detailCardId);
+                    if (!card) return;
+                    const newVer = incrementVersion(card.version);
+                    const replacer = currentViewMode === 'agency'
+                        ? AGENCY_USERS[Math.floor(Math.random()*AGENCY_USERS.length)]
+                        : 'Rod Walsh';
+                    const now = new Date();
+                    const oldEntry = { ver: card.version||'V.1', by: card.addedBy||'Rod Walsh', at: card.addedAt||card.modifiedAt||now };
+                    state = state.map(c => c.id === _detailCardId ? {
+                        ...c,
+                        versions: [...(c.versions||[]), oldEntry],
+                        fileName: file.name, version: newVer,
+                        fileSize: formatFileSize(file.size),
+                        addedBy: replacer, addedAt: now, modifiedAt: now,
+                        agencyUpdated: currentViewMode==='agency' ? c.agencyUpdated : false,
+                        ...(currentViewMode==='agency' ? {agencySubmittedBy:replacer,agencySubmittedAt:now} : {})
+                    } : c);
+                    renderBoard();
+                    _renderDetailPage();
+                    toast('File replaced — ' + newVer);
+                };
+                inp.click();
+            }
+
+            function saveDetailPage() {
+                if (!_detailCardId) return;
+                const name = document.getElementById('dp-name').value.trim();
+                const type = document.getElementById('dp-type').value;
+                const col  = document.getElementById('dp-column').value;
+                const card = state.find(c => c.id === _detailCardId);
+                if (!card) return;
+                const lm = type.match(/Schedule ([A-Z])/);
+                const letter = lm ? lm[1] : card.letter;
+                const colChanged = card.col !== col;
+                const cardId = _detailCardId;
+                state = state.map(c => c.id === cardId ? {...c, title:name, docType:type, letter:letter} : c);
+                closeDetailPage();
+                if (colChanged) openBoardComment(cardId, col);
+                else renderBoard();
+            }
+
+            function deleteDetailCard() {
+                if (!_detailCardId) return;
+                deleteCard(_detailCardId);
+                closeDetailPage();
+            }
+
+            /* ── original openModal body (kept for closeModal / activeCardId compat) ── */
+            function _legacyPopulateModal(id) {
                 const card = state.find((c) => c.id === id);
                 if (!card) return;
                 activeCardId = id;
@@ -4940,7 +5094,7 @@
                     const label =
                         card.cardType === "package"
                             ? "Grant Package"
-                            : "Schedule " + card.letter;
+                            : card.docType || ("Schedule " + card.letter);
                     const tr = document.createElement("tr");
                     tr.style.borderBottom = "1px solid #DCDCDC";
 
@@ -4952,7 +5106,8 @@
                     const sub = document.createElement("div");
                     sub.style.cssText =
                         "font-size:11px;color:#888;font-weight:normal;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px";
-                    sub.textContent = card.fileName || card.title || "";
+                    const subText = card.fileName || (card.title !== label ? card.title : "") || "";
+                    sub.textContent = subText;
                     tdName.appendChild(sub);
                     tr.appendChild(tdName);
 
@@ -7103,5 +7258,80 @@
                 </div>
             </div>
         </div>
+
+        <!-- ══ DOCUMENT DETAIL PAGE ══ -->
+        <main id="view-detail" style="display:none;flex-direction:column;flex:1;min-height:0;font-family:var(--font)">
+            <!-- toolbar -->
+            <div style="padding:12px 24px;border-bottom:1px solid #DCDCDC;background:#fff;display:flex;align-items:center;gap:12px;flex-shrink:0">
+                <button onclick="closeDetailPage()" style="font-family:var(--font);font-size:13px;background:#fff;border:1px solid #DCDCDC;padding:6px 14px;cursor:pointer">← Back</button>
+                <span style="font-size:15px;font-weight:bold">Document Details</span>
+                <div style="margin-left:auto;display:flex;gap:8px">
+                    <button onclick="deleteDetailCard()" style="font-family:var(--font);font-size:13px;background:#fff;border:1px solid #DCDCDC;padding:6px 14px;cursor:pointer;color:#999">Delete</button>
+                    <button onclick="saveDetailPage()" style="font-family:var(--font);font-size:13px;background:#1a1a1a;color:#fff;border:1px solid #1a1a1a;padding:6px 16px;cursor:pointer">Save changes</button>
+                </div>
+            </div>
+            <!-- body -->
+            <div style="flex:1;overflow:auto;padding:32px 40px">
+                <div style="display:grid;grid-template-columns:340px 1fr;gap:48px;max-width:860px">
+
+                    <!-- Left: fields -->
+                    <div style="display:flex;flex-direction:column;gap:20px">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px">Document Type</label>
+                            <div style="position:relative">
+                                <select id="dp-type" style="width:100%;font-family:var(--font);font-size:13px;border:1px solid #DCDCDC;padding:8px 28px 8px 10px;background:#fff;appearance:none;cursor:pointer;box-sizing:border-box"></select>
+                                <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px">Document Name</label>
+                            <input id="dp-name" style="width:100%;font-family:var(--font);font-size:13px;border:1px solid #DCDCDC;padding:8px 10px;box-sizing:border-box" />
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px">Current Document</label>
+                            <div style="border:1px solid #DCDCDC;padding:12px;background:#F8F8F8;display:flex;align-items:center;gap:10px">
+                                <div id="dp-file-icon" style="flex-shrink:0"></div>
+                                <div style="flex:1;min-width:0">
+                                    <div id="dp-file-name" style="font-size:13px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+                                    <div id="dp-file-meta" style="font-size:11px;color:#888;margin-top:2px"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px">Column</label>
+                            <div style="position:relative">
+                                <select id="dp-column" style="width:100%;font-family:var(--font);font-size:13px;border:1px solid #DCDCDC;padding:8px 28px 8px 10px;background:#fff;appearance:none;cursor:pointer;box-sizing:border-box">
+                                    <option>Draft</option><option>Agency</option><option>Internal Review</option><option>Ready</option>
+                                </select>
+                                <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:6px">Added by</label>
+                            <input id="dp-added-by" disabled style="width:100%;font-family:var(--font);font-size:13px;border:1px solid #DCDCDC;padding:8px 10px;background:#F1F1F1;color:#888;cursor:not-allowed;box-sizing:border-box" />
+                        </div>
+                    </div>
+
+                    <!-- Right: versions -->
+                    <div>
+                        <div style="font-size:15px;font-weight:bold;padding-bottom:10px;border-bottom:1px solid #DCDCDC;margin-bottom:12px">Versions</div>
+                        <button onclick="dpReplaceFile()" style="font-family:var(--font);font-size:13px;background:#fff;border:1px solid #DCDCDC;padding:6px 14px;cursor:pointer;margin-bottom:12px">↑ Replace file</button>
+                        <div style="border:1px solid #DCDCDC">
+                            <table style="width:100%;border-collapse:collapse;font-family:var(--font)">
+                                <thead style="background:#F1F1F1">
+                                    <tr>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #DCDCDC;white-space:nowrap">Version</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #DCDCDC;white-space:nowrap">Uploaded by</th>
+                                        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #DCDCDC">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dp-versions-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
     </body>
 </html>
